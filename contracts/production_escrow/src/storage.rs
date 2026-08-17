@@ -1,5 +1,5 @@
-use crate::types::{Campaign, DataKey, Dispute};
-use soroban_sdk::{Address, Env};
+use crate::types::{Campaign, DataKey, Dispute, HarvestRecord, TrancheList};
+use soroban_sdk::{Address, Env, Vec};
 
 const DAY_IN_LEDGERS: u32 = 17280;
 const INSTANCE_LIFETIME_THRESHOLD: u32 = DAY_IN_LEDGERS * 30;
@@ -37,10 +37,12 @@ pub fn has_campaign(env: &Env, campaign_id: u64) -> bool {
         .has(&DataKey::Campaign(campaign_id))
 }
 
-pub fn get_campaign(env: &Env, campaign_id: u64) -> Campaign {
+pub fn get_campaign(env: &Env, campaign_id: u64) -> Option<Campaign> {
     let key = DataKey::Campaign(campaign_id);
-    let campaign = env.storage().persistent().get(&key).unwrap();
-    extend_persistent_ttl(env, &key);
+    let campaign = env.storage().persistent().get(&key);
+    if campaign.is_some() {
+        extend_persistent_ttl(env, &key);
+    }
     campaign
 }
 
@@ -50,10 +52,12 @@ pub fn set_campaign(env: &Env, campaign_id: u64, campaign: &Campaign) {
     extend_persistent_ttl(env, &key);
 }
 
-pub fn get_dispute(env: &Env, campaign_id: u64) -> Dispute {
+pub fn get_dispute(env: &Env, campaign_id: u64) -> Option<Dispute> {
     let key = DataKey::Dispute(campaign_id);
-    let dispute = env.storage().persistent().get(&key).unwrap();
-    extend_persistent_ttl(env, &key);
+    let dispute = env.storage().persistent().get(&key);
+    if dispute.is_some() {
+        extend_persistent_ttl(env, &key);
+    }
     dispute
 }
 
@@ -75,5 +79,34 @@ pub fn get_contribution(env: &Env, campaign_id: u64, investor: &Address) -> i128
 pub fn set_contribution(env: &Env, campaign_id: u64, investor: &Address, amount: i128) {
     let key = DataKey::Contribution(campaign_id, investor.clone());
     env.storage().persistent().set(&key, &amount);
+    extend_persistent_ttl(env, &key);
+}
+
+pub fn get_tranches(env: &Env, campaign_id: u64) -> TrancheList {
+    let key = DataKey::Tranches(campaign_id);
+    env.storage()
+        .persistent()
+        .get(&key)
+        .unwrap_or_else(|| Vec::new(env))
+}
+
+pub fn set_tranches(env: &Env, campaign_id: u64, tranches: &TrancheList) {
+    let key = DataKey::Tranches(campaign_id);
+    env.storage().persistent().set(&key, tranches);
+    extend_persistent_ttl(env, &key);
+}
+
+pub fn get_harvest_record(env: &Env, campaign_id: u64) -> Option<HarvestRecord> {
+    let key = DataKey::HarvestRecord(campaign_id);
+    let record = env.storage().persistent().get(&key);
+    if record.is_some() {
+        extend_persistent_ttl(env, &key);
+    }
+    record
+}
+
+pub fn set_harvest_record(env: &Env, campaign_id: u64, record: &HarvestRecord) {
+    let key = DataKey::HarvestRecord(campaign_id);
+    env.storage().persistent().set(&key, record);
     extend_persistent_ttl(env, &key);
 }
